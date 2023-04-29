@@ -4,4 +4,10 @@ import App from './frontend/App.vue';
 
 import './frontend/index.css';
 
-createApp(App).mount('#app');
+import router from './frontend/router.js';
+
+const vueApp = createApp(App);
+vueApp.mount('#app');
+
+vueApp.use(router);
+
