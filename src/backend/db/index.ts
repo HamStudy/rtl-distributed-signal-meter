@@ -5,7 +5,7 @@ import { TestRun, TestRunCollection } from "./testRun";
 import { TestRunData, TestRunDataCollection } from "./testRunData";
 import { LastUpdate } from './lastUpdate';
 
-export {
+export type {
     Experiment,
     ExperimentCollection,
     NodeStatus,

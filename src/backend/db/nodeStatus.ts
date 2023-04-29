@@ -18,6 +18,12 @@ export interface NodeStatus {
 
     // The last IP address that the node was seen at
     lastIp: string;
+
+    rfStatus?: {
+        updatedAt: Date;
+        level: number;
+        frequency: string;
+    }
 }
 
 export type NodeStatusCollection = Collection<NodeStatus>;

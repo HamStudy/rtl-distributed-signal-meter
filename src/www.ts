@@ -1,15 +1,17 @@
 #!/usr/bin/env node
 
-require('dotenv').config();
+import {config as dotEnvConfig} from 'dotenv';
+dotEnvConfig();
 
 /**
  * Module dependencies.
  */
 
-import app from './app';
+import app from './backend/app';
 import Debug from 'debug';
 
 import expressWs from 'express-ws';
+import ViteExpress from 'vite-express';
 
 const debug = Debug('signal-meter:server');
 import http from 'node:http';
@@ -27,6 +29,10 @@ app.set('port', port);
 
 const server = http.createServer(app);
 expressWs(app, server);
+ViteExpress.config({
+    vitePort: 5173,
+});
+ViteExpress.bind(app, server);
 /**
  * Listen on provided port, on all network interfaces.
  */
@@ -34,6 +40,7 @@ expressWs(app, server);
 server.listen(port);
 server.on('error', onError);
 server.on('listening', onListening);
+
 
 /**
  * Normalize a port into a number, string, or false.
@@ -55,9 +62,9 @@ function normalizePort(val: string) {
   return false;
 }
 
-function isNodeError(error: any): error is NodeJS.ErrnoException {
-    return error instanceof Error;
-  }
+// function isNodeError(error: any): error is NodeJS.ErrnoException {
+//     return error instanceof Error;
+// }
 
 /**
  * Event listener for HTTP server "error" event.

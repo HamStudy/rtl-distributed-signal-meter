@@ -1,9 +1,9 @@
 
 import {WebSocket} from 'ws';
-import { WSMessageDoc } from './wsMessage';
-import { RtlPowerEvent, RtlPowerWrapper, getNoiseFloor, roundToDecimals } from './rtlPower';
+import { WSMessageDoc } from './backend/wsMessage';
+import { RtlPowerEvent, RtlPowerWrapper, getNoiseFloor, roundToDecimals } from './backend/rtlPower';
 
-import { TestRun } from './db/testRun';
+import { TestRun } from './backend/db/testRun';
 
 // Typescript code:
 // Write a typescript function that will launch the program `rtl_power` with the specified options.

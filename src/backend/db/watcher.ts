@@ -1,8 +1,8 @@
 
-import { ObjectId, Filter, ChangeStreamDocument, ChangeStream, ResumeToken, Document as MongoDocument, ChangeStreamUpdateDocument } from 'mongodb';
-import { Experiment, NodeStatus, TestRun, TestRunData, getCollections, getDatabase } from './index';
-import { getAgenda } from './agenda';
 import { JobAttributesData } from 'agenda';
+import { ChangeStream, ChangeStreamDocument, ChangeStreamUpdateDocument, Filter, Document as MongoDocument, ResumeToken } from 'mongodb';
+import { getAgenda } from './agenda';
+import { Experiment, NodeStatus, TestRun, TestRunData, getCollections, getDatabase } from './index';
 import { LastUpdate } from './lastUpdate';
 
 export interface DbWatchDefinition<TSchema extends MongoDocument> {
@@ -31,7 +31,7 @@ function initWatchDefs(dbName: string) {
 }
 
 const pingSeconds = 5;
-const failSeconds = 15;
+// const failSeconds = 15;
 let isShutdown = false;
 export function shutdown() {
     isShutdown = true;
@@ -152,8 +152,8 @@ async function startWatch() {
     // watchDogInterval.unref(); // don't prevent the process from exiting
 }
 
-type CRUKeys = 'insert' | 'update' | 'replace';
-type DelKey = 'delete';
+// type CRUKeys = 'insert' | 'update' | 'replace';
+// type DelKey = 'delete';
 
 const handlers = new Map<symbol, WatchHandler>();
 
@@ -186,11 +186,11 @@ export function watchDatabase(handler: ValidWatchHandler) : () => void {
 }
 
 let startToken: ResumeToken;
-let watchDogTick: ReturnType<typeof Date.now>;
+// let watchDogTick: ReturnType<typeof Date.now>;
 async function onChangeHandler(doc: ChangeStreamDocument<any>) {
     startToken = doc._id;
     // Update current time
-    watchDogTick = Date.now();
+    // watchDogTick = Date.now();
     // console.log("Watchdog update");
 
     switch(doc.operationType) {

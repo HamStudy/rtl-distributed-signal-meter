@@ -3,7 +3,6 @@ import createError, { HttpError } from 'http-errors';
 import logger from 'morgan';
 import path from 'path';
 import cookieParser from 'cookie-parser';
-const port = process.env.HTTP_PORT ? parseInt(process.env.HTTP_PORT, 10) : 3000;
 
 import express from 'express';
 import expressWs from 'express-ws';
@@ -14,7 +13,7 @@ expressWs(app);
 import { router as NodeSocketRouter } from './socketServer';
 
 // view engine setup
-app.set('views', path.join(__dirname, 'views'));
+app.set('views', path.join(__dirname, '..', '..', 'views'));
 app.set('view engine', 'ejs');
 
 app.use(logger('dev'));
@@ -24,6 +23,11 @@ app.use(cookieParser());
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 app.use('/', NodeSocketRouter);
+
+/* GET home page. */
+app.get('/', function(req, res, next) {
+  res.render('index', { title: 'Express' });
+});
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {

@@ -1,11 +1,11 @@
 import { Router } from "express";
 import { WebSocket } from 'ws';
 
-import { TestRunData, getCollections, getDatabase } from "./db/index";
-import { WSMessageDoc } from './wsMessage';
-import { watchDatabase } from './db/watcher';
-import { v4 as uuid } from 'uuid';
 import { ObjectId } from "mongodb";
+import { v4 as uuid } from 'uuid';
+import { TestRunData, getCollections } from "./db/index";
+import { watchDatabase } from './db/watcher';
+import { WSMessageDoc } from './wsMessage';
 
 export const router = Router();
 
@@ -46,8 +46,7 @@ router.get('/connectNode/:nodeId', async (req, res) => {
 });
 
 router.ws('/connectNode/:nodeId', async (ws, req) => {
-    const { nodeStatus, testRun, testRunData } = await getCollections('nodeStatus', 'testRun', 'testRunData');
-    const db = await getDatabase();
+    const { nodeStatus: NodeStatus } = await getCollections('nodeStatus', 'testRun', 'testRunData');
     // let closing = false;
 
     const connection = uuid();
@@ -63,7 +62,7 @@ router.ws('/connectNode/:nodeId', async (ws, req) => {
         }, k_PingTimeout);
     }
 
-    ws.on('message', (data) => {
+    ws.on('message', (data: Buffer) => {
         const msg = JSON.parse(data.toString()) as WSMessageDoc;
         console.log("Msg received:", msg);
         switch (msg.type) {
@@ -74,7 +73,7 @@ router.ws('/connectNode/:nodeId', async (ws, req) => {
                 clearTimeout(pingTimeout!);
                 pingTimeout = null;
                 nextPingTimeout = setTimeout(doPing, k_PingInterval);
-                nodeStatus.findOneAndUpdate({
+                NodeStatus.findOneAndUpdate({
                     name: req.params.nodeId,
                     instanceString: connection,
                 }, {$set: { lastSeen: new Date() }});
@@ -83,12 +82,22 @@ router.ws('/connectNode/:nodeId', async (ws, req) => {
                 // Data received from node
                 const dataDoc = msg.data;
                 dataDoc.timestamp = new Date(dataDoc.timestamp);
-                saveData(nodeStatusDoc.value!._id, msg.data);
+                saveData(nodeStatusDoc._id, msg.data);
+                if (!nodeStatusDoc.rfStatus || dataDoc.timestamp > nodeStatusDoc.rfStatus.updatedAt) {
+                    nodeStatusDoc.rfStatus = {
+                        updatedAt: dataDoc.timestamp,
+                        level: dataDoc.power,
+                        frequency: dataDoc.frequency,
+                    };
+                    NodeStatus.updateOne({_id: nodeStatusDoc._id}, {
+                        $set: {rfStatus: nodeStatusDoc.rfStatus},
+                    }); 
+                }
                 break;
         }
     });
 
-    // let currentTestRun = await testRun.findOne({
+    // let currentTestRun = await testRun.findOne({      
     //     state: 'running',
     // });
     nextPingTimeout = setTimeout(doPing, k_PingInterval);
@@ -131,7 +140,7 @@ router.ws('/connectNode/:nodeId', async (ws, req) => {
     });
 
     // Take command of this node
-    const nodeStatusDoc = await nodeStatus.findOneAndUpdate({
+    const nodeStatusRes = await NodeStatus.findOneAndUpdate({
         name: nodeId,
     }, {$set: {
         name: nodeId,
@@ -140,4 +149,5 @@ router.ws('/connectNode/:nodeId', async (ws, req) => {
         state: 'connected',
         lastIp: req.ip,
     }}, {upsert: true, returnDocument: 'after'});
+    const nodeStatusDoc = nodeStatusRes.value!;
 });
