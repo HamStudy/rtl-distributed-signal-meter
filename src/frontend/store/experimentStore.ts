@@ -45,6 +45,8 @@ export default defineStore('experimentStore', () => {
       } else {
         currentTestRuns.value.push(Object.freeze(msg.doc));
       }
+
+      currentTestRuns.value.sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
     },
     'ping': function() {
       sendWsData(socket!, {type: 'pong'});
@@ -65,6 +67,7 @@ export default defineStore('experimentStore', () => {
         allNodes.value.splice(existingNode, 1, Object.freeze(statusDoc));
       } else {
         allNodes.value.push(Object.freeze(statusDoc));
+        console.log("Added node", statusDoc, allNodes.value);
       }
     },
     'trData': function(msg: TestRunDataMessage) {
@@ -101,6 +104,9 @@ export default defineStore('experimentStore', () => {
       } else {
         byNode.set(trd.nodeId, [trd]);
       }
+    }
+    for (const node of byNode.values()) {
+      node.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
     }
     return byNode;
   };

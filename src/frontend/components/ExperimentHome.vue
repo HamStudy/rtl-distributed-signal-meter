@@ -36,14 +36,20 @@ function nodeRfActive(node: NodeStatus) {
 function getProgressColor(powerLevel: number) {
   const powerPercent = powerLevel / 30;
 
-  if (powerPercent < 0.25) {
-    return "dark";
+  if (powerPercent < 0.2) {
+    return "bg-amber-800";
+  } else if (powerPercent < 0.3) {
+    return "bg-amber-700";
+  } else if (powerPercent < 0.4) {
+    return "bg-amber-600";
   } else if (powerPercent < 0.5) {
-    return "red";
-  } else if (powerPercent < 0.75) {
-    return "yellow";
+    return "bg-amber-500";
+  } else if (powerPercent < 0.65) {
+    return "bg-amber-400";
+  } else if (powerPercent < 0.8) {
+    return "bg-green-500";
   } else {
-    return "green";
+    return "bg-green-400";
   }
 }
 
@@ -59,35 +65,41 @@ function getProgressColor(powerLevel: number) {
 
       {{  expStore.expId }}
 
-      <the-card class="max-w-full">
-        <h5 class="mb-2 text-xl font-bold tracking-tight text-gray-900 dark:text-white">Active Nodes</h5>
-        <div>
-          <the-card v-for="node in expStore.activeNodes" class="max-w-xs">
+      <div class="block bg-white rounded-lg border border-gray-200 shadow-md hover:bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-700 max-w-full p-6 mb-5">
+        <h5 class="mb-6 text-xl font-bold tracking-tight text-gray-900">Active Nodes</h5>
+        <div class="container flex">
+          <div v-for="node in expStore.activeNodes" class="block bg-white rounded-lg border border-gray-200 shadow-md hover:bg-gray-100 dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-700 w-full p-6 m-2">
             {{ node.nodeName }}
             <div v-if="nodeRfActive(node)">
               <p class="text-green-500">Active: {{ formatMHz(node.rfStatus!.frequency) }}</p>
               <Progress :progress="node.rfStatus!.level / 30 * 100"
                 :label-progress="false" labelPosition="outside" :label="`${node.rfStatus!.level} dBm`"
-                :color="getProgressColor(node.rfStatus!.level)"
+                color="green"
               ></Progress>
             </div>
-          </the-card>
+          </div>
         </div>
-      </the-card>
+      </div>
 
-      <the-card v-for="testRun in expStore.currentTestRuns" class="max-w-full">
-        <h5 class="mb-2 text-xl font-bold tracking-tight text-gray-900 dark:text-white">{{ formatTime(testRun.startTime) }}: {{ formatMHz(testRun.frequency) }}</h5>
-        <div>
-          <the-card v-for="node in expStore.nodesForTestRun(testRun)" class="max-w-xs">
-            {{ node.nodeName }}
-            <Progress v-for="point of expStore.getNodeTrData(testRun, node)"
-              :label-progress="false" labelPosition="outside" :label="`${point.power} dBm`"
-              :color="getProgressColor(point.power)"
-              :progress="point.power / 30 * 100" ></Progress>
-          </the-card>
-        </div>
-      </the-card>
-
+      <div class="flex">
+        <the-card v-for="testRun in expStore.currentTestRuns" class="max-w-full m-2">
+          <div>
+            <h5 class="mb-2 text-xl font-bold tracking-tight text-gray-900">{{ formatTime(testRun.startTime) }}: {{ formatMHz(testRun.frequency) }}</h5>
+              <the-card v-for="node in expStore.nodesForTestRun(testRun)" class="max-w-xs">
+              {{ node.nodeName }}
+              <!-- <Progress v-for="point of expStore.getNodeTrData(testRun, node)"
+                :label-progress="false" labelPosition="outside" :label="`${point.power} dBm`"
+                :color="getProgressColor(point.power)"
+                :progress="point.power / 30 * 100" ></Progress> -->
+              <div class="flex">
+                <div class="flex flex-col flex-nowrap justify-end w-2 h-32 bg-gray-200 overflow-hidden dark:bg-gray-700" v-for="point of expStore.getNodeTrData(testRun, node)">
+                  <div :class="`${getProgressColor(point.power)} overflow-hidden`" role="progressbar" :style="`height: ${5 + point.power / 30 * 100}%`" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100"></div>
+                </div>
+              </div>
+            </the-card>
+          </div>
+        </the-card>
+      </div>
     </div>
   </div>
 </template>
