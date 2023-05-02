@@ -24,6 +24,9 @@ const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/signal
 let dbClient: MongoClient | null = null;
 let dbClientP: Promise<MongoClient> | null = null;
 
+export function getDbUri() {
+  return MONGODB_URI;
+}
 export async function connectDbClient() {
     if (dbClient || dbClientP) {
         return dbClient || dbClientP;

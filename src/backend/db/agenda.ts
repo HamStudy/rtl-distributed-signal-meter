@@ -1,13 +1,13 @@
 import Agenda from 'agenda';
-import { getDatabase } from "./index";
+import { getDbUri } from "./index";
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 let agenda: Agenda;
 export async function getAgenda() {
-    const db = await getDatabase();
-    agenda = new Agenda({mongo: db as any, processEvery: '10 seconds', defaultLockLifetime: 5000});
-    
+    const mongoUri = getDbUri();
+    agenda = new Agenda({db: {address: mongoUri}, processEvery: '10 seconds', defaultLockLifetime: 5000});
+
     agenda.start();
     return agenda;
 }
