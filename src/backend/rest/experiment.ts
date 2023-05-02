@@ -86,7 +86,7 @@ export function getRouter() {
         sendWsData(ws, {
           type: "nodeStatus",
           nodeName: newDoc.name,
-          nodeId: newDoc.name,
+          nodeId: newDoc._id.toString(),
           lastSeen: newDoc.lastSeen,
           rfStatus: newDoc.rfStatus,
         });
