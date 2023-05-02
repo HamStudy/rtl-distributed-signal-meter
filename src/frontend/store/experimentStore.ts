@@ -8,6 +8,14 @@ export type NodeStatus = Omit<NodeStatusMessage, 'type'>;
 export type TestRun = TestRunUpdate['doc'];
 export type TestRunData = TestRunDataMessage['doc'];
 
+const k_UpdateInterval = 250;
+
+function formatDistanceToNow(date: Date) {
+  const diff = Math.round(date.getTime() - Date.now()) / 1000;
+
+  return `in ${diff} second` + (diff === 1 ? '' : 's');
+}
+
 export default defineStore('experimentStore', () => {
   const expId = ref('');
 
@@ -46,7 +54,7 @@ export default defineStore('experimentStore', () => {
         currentTestRuns.value.push(Object.freeze(msg.doc));
       }
 
-      currentTestRuns.value.sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+      currentTestRuns.value.sort((a, b) => b.startTime.getTime() - a.startTime.getTime());
     },
     'ping': function() {
       sendWsData(socket!, {type: 'pong'});
@@ -136,6 +144,31 @@ export default defineStore('experimentStore', () => {
     }
   }, {immediate: true});
 
+  const jobStatus = ref<Record<string, {state: '' | 'pend' | 'run' | 'done', status: string}>>({});
+
+  setInterval(() => {
+    // Loop over all jobs
+    for (const tr of currentTestRuns.value) {
+      if (!jobStatus.value[tr._id]) {
+        jobStatus.value[tr._id] = {state: 'done', status: ''};
+      }
+      if (tr.startTime.getTime() > Date.now()) {
+        // if the job has not started yet calculate how long until it starts
+        jobStatus.value[tr._id].state = 'pend';
+        jobStatus.value[tr._id].status = `Starting in ${formatDistanceToNow(tr.startTime)}`;
+      } else if (tr.startTime.getTime() <= Date.now() && tr.endTime.getTime() > Date.now()) {
+        // if the job has started but not finished calculate how long until it finishes
+        jobStatus.value[tr._id].state = 'run';
+        jobStatus.value[tr._id].status = `Finishing in ${formatDistanceToNow(tr.endTime)}`;
+      } else {
+        if (jobStatus.value[tr._id].state !== 'done') {
+          jobStatus.value[tr._id].state = 'done';
+          jobStatus.value[tr._id].status = '';
+        }
+      }
+    }
+  }, k_UpdateInterval);
+
   return {
     expId,
 
@@ -143,6 +176,8 @@ export default defineStore('experimentStore', () => {
     allNodes,
     currentTestRuns,
     testRunData,
+
+    jobStatus,
 
     dataForTestRun,
     trDataByNode,

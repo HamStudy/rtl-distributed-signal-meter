@@ -35,7 +35,7 @@ function initWatchDefs(dbName: string) {
 }
 
 const pingSeconds = 5;
-// const failSeconds = 15;
+const failSeconds = 15;
 let isShutdown = false;
 export function shutdown() {
     isShutdown = true;
@@ -81,20 +81,21 @@ type ChangeFilter<D extends MongoDocument> = (newDoc: D) => boolean;
 type DeleteHandler<D extends MongoDocument> = (deletedId: D['_id']) => void;
 
 let changes: ChangeStream<any> | null;
-// let watchDogInterval: ReturnType<typeof setInterval>;
+let watchDogInterval: ReturnType<typeof setInterval> | undefined;
+let disableWatchdog = false;
 
 // This is the failsafe; if somehow all my other checks totally fail,
 // we're going to terminate this process and let another take over
-// let killerWatchDogInterval = setInterval(() => {
-//     if (disableWatchdog) { return; }
-//     const secondsSinceLastUpdate = (Date.now() - watchDogTick) / 1000;
-//     if (secondsSinceLastUpdate > failSeconds * 10) {
-//         // We're at 10x longer than we wait to try to restart the watch;
-//         // we're not recovering, so die Die DIE!
-//         K8sLifecycle.setUnrecoverableError(new Error("dbWatcher timeout hit"));
-//     }
-// }, 1000 * 60 * 5);
-// killerWatchDogInterval.unref(); // don't keep the process from ending
+let killerWatchDogInterval = setInterval(() => {
+    if (disableWatchdog) { return; }
+    const secondsSinceLastUpdate = (Date.now() - watchDogTick) / 1000;
+    if (secondsSinceLastUpdate > failSeconds * 10) {
+        // We're at 10x longer than we wait to try to restart the watch;
+        // we're not recovering, so die Die DIE!
+        // K8sLifecycle.setUnrecoverableError(new Error("dbWatcher timeout hit"));
+    }
+}, 1000 * 60 * 5);
+killerWatchDogInterval.unref(); // don't keep the process from ending
 
 let isStarted = false;
 async function startWatch() {
@@ -134,26 +135,26 @@ async function startWatch() {
     changes.on('resumeTokenChanged', token => {
         startToken = token;
     });
-    // if (watchDogInterval) {
-    //     clearInterval(watchDogInterval);
-    //     watchDogInterval = void 0;
-    // }
-    // watchDogInterval = setInterval(() => {
-    //     if (disableWatchdog || isShutdown) { return; }
-    //     let secondsSinceLastUpdate = (Date.now() - watchDogTick) / 1000;
-    //     if (secondsSinceLastUpdate > failSeconds) {
-    //         console.warn("database watcher watchdog timeout!");
-    //         // We haven't seen an update since failSeconds, something is wrong!
-    //         if (changes) {
-    //             changes?.close();
-    //         } else {
-    //             startWatch();
-    //         }
-    //     } else if (secondsSinceLastUpdate > (failSeconds * .6)) {
-    //         console.warn(`database watcher watchdog 60% to timeout!, ${secondsSinceLastUpdate}`);
-    //     }
-    // }, pingSeconds * 1000);
-    // watchDogInterval.unref(); // don't prevent the process from exiting
+    if (watchDogInterval) {
+        clearInterval(watchDogInterval);
+        watchDogInterval = void 0;
+    }
+    watchDogInterval = setInterval(() => {
+        if (disableWatchdog || isShutdown) { return; }
+        let secondsSinceLastUpdate = (Date.now() - watchDogTick) / 1000;
+        if (secondsSinceLastUpdate > failSeconds) {
+            console.warn("database watcher watchdog timeout!");
+            // We haven't seen an update since failSeconds, something is wrong!
+            if (changes) {
+                changes?.close();
+            } else {
+                startWatch();
+            }
+        } else if (secondsSinceLastUpdate > (failSeconds * .6)) {
+            console.warn(`database watcher watchdog 60% to timeout!, ${secondsSinceLastUpdate}`);
+        }
+    }, pingSeconds * 1000);
+    watchDogInterval.unref(); // don't prevent the process from exiting
 }
 
 // type CRUKeys = 'insert' | 'update' | 'replace';
@@ -190,11 +191,11 @@ export function watchDatabase(handler: ValidWatchHandler) : () => void {
 }
 
 let startToken: ResumeToken;
-// let watchDogTick: ReturnType<typeof Date.now>;
+let watchDogTick: ReturnType<typeof Date.now>;
 async function onChangeHandler(doc: ChangeStreamDocument<any>) {
     startToken = doc._id;
     // Update current time
-    // watchDogTick = Date.now();
+    watchDogTick = Date.now();
     // console.log("Watchdog update");
 
     switch(doc.operationType) {
