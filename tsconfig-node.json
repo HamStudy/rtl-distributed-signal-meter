@@ -22,7 +22,7 @@
 
       /* output */
       "sourceMap": true,
-      "outDir": "dist",
+      "outDir": "ndist",
     },
     "include": [
         "src/**/*.ts",

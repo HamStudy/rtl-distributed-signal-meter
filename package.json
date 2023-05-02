@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "watch:server": "DEBUG='signal-meter:*' tsc-watch -p tsconfig-node.json --onSuccess 'node --enable-source-maps dist/www'",
+    "start": "DEBUG='signal-meter:*' tsc-watch -p tsconfig-node.json --onSuccess 'node --enable-source-maps ndist/www'",
+    "build": "tsc -p tsconfig-node.json && vite build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
