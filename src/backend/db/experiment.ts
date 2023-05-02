@@ -6,8 +6,8 @@ export interface Experiment {
     name: string;
     description: string;
 
-    startTime: Date;
-    endTime: Date;
+    created: Date;
+    updatedAt: Date;
 }
 
 export type ExperimentCollection = Collection<Experiment>;

@@ -61,7 +61,10 @@ export async function getDatabase() {
     return conn.db();
 }
 
-export async function getCollections(...collName: Array<keyof CollectionTypes>) {
+function capitalize<T extends string>(str: T) : Capitalize<T> {
+  return str.charAt(0).toUpperCase() + str.slice(1) as Capitalize<T>;
+}
+export async function getCollections<T extends keyof CollectionTypes>(...collName: Array<T>) {
     const conn = await connectDbClient();
     if (!conn) { throw new Error('Could not connect to DB'); }
 
@@ -69,10 +72,10 @@ export async function getCollections(...collName: Array<keyof CollectionTypes>) 
     const collections = {} as any;
     const collNames = await db.listCollections().toArray();
     for (const name of collName) {
-        collections[name] = db.collection(name);
+        collections[capitalize(name)] = db.collection(name as string);
         if (!collNames.some(c => c.name == name)) {
-            await db.createCollection(name);
+            await db.createCollection(name as string);
         }
     }
-    return collections as { [K in keyof CollectionTypes]: Collection<CollectionTypes[K]> };
+    return collections as { [K in T as Capitalize<K>]: Collection<CollectionTypes[K]> };
 }

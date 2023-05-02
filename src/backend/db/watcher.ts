@@ -26,6 +26,10 @@ function initWatchDefs(dbName: string) {
     });
     addWatchDef({
         db: dbName,
+        collection: 'testRunData',
+    });
+    addWatchDef({
+        db: dbName,
         collection: 'lastUpdate',
     });
 }
@@ -45,14 +49,14 @@ async function initAgenda() {
     if (agendaInitialized) { return; }
     agendaInitialized = true;
     const [
-        {lastUpdate},
+        {LastUpdate},
         agenda,
     ] = await Promise.all([
         getCollections('lastUpdate'),
         getAgenda(),
     ]);
     agenda.define('updateWatch', {lockLifetime: pingSeconds/2 * 1000}, async (job: JobAttributesData) => {
-        const upd = await lastUpdate.findOneAndUpdate({_id: 'dbWatcher'}, {$set: {lastUpdate: new Date()}}, {upsert: true});
+        const upd = await LastUpdate.findOneAndUpdate({_id: 'dbWatcher'}, {$set: {lastUpdate: new Date()}}, {upsert: true});
         if (!upd.value) {
             console.log("Failed to update lastUpdate");
         }

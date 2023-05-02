@@ -7,7 +7,11 @@ export default {
     "node_modules/flowbite-vue/**/*.{js,jsx,ts,tsx}",
   ],
   theme: {
-    extend: {},
+    extend: {
+      gridTemplateColumns: {
+        '12': 'repeat(12, minmax(0, 1fr))'
+      }
+    },
   },
   plugins: [
     require('flowbite/plugin'),

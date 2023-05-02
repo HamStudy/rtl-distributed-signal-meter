@@ -7,13 +7,13 @@
       "module": "CommonJS",
       "lib": ["ES2020", "DOM", "DOM.Iterable"],
       "skipLibCheck": true,
-  
+
       /* Bundler mode */
       "moduleResolution": "node",
       "resolveJsonModule": true,
       "isolatedModules": true,
       "jsx": "preserve",
-  
+
       /* Linting */
       "strict": true,
       "noUnusedLocals": true,
@@ -21,6 +21,7 @@
       "noFallthroughCasesInSwitch": true,
 
       /* output */
+      "sourceMap": true,
       "outDir": "dist",
     },
     "include": [
@@ -29,4 +30,3 @@
     ],
     "exclude": ["src/main-frontend.ts", "src/frontend/**/*"],
   }
-  

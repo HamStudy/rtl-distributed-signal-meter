@@ -5,10 +5,12 @@ import path from 'path';
 import cookieParser from 'cookie-parser';
 
 import express from 'express';
-import expressWs from 'express-ws';
+import { getWsInstance } from './expressWs';
+
+import { getRouter as getExpRouter, routerPrefix as expRouterPrefix } from './rest/experiment';
 
 const app = express();
-expressWs(app);
+export const wsInstance = getWsInstance(app);
 
 import { router as NodeSocketRouter } from './socketServer';
 
@@ -22,10 +24,12 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
+app.use(expRouterPrefix, getExpRouter());
+
 app.use('/', NodeSocketRouter);
 
 /* GET home page. */
-app.get('/', function(req, res, next) {
+app.get('/*', function(req, res, next) {
   res.render('index', { title: 'Express' });
 });
 
@@ -40,7 +44,7 @@ app.use((err: HttpError, req: express.Request, res: express.Response, next: expr
     // set locals, only providing error in development
     res.locals.message = err.message;
     res.locals.error = req.app.get('env') === 'development' ? err : {};
-  
+
     // render the error page
     res.status(err.status || 500);
     res.render('error');
