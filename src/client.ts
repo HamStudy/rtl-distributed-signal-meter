@@ -124,7 +124,10 @@ async function websocketClient(opts: WebsocketOptions) {
 function webSocketRunning(ws: WebSocket, nodeId: string) {
   currentSocket = ws;
   if (!rtlPower) {
-    rtlPower = new RtlPowerWrapper({});
+    rtlPower = new RtlPowerWrapper({
+      gain: 60,
+      binSize: `5K`,
+    });
     rtlPower.on("data", onRtlPower);
   }
 
