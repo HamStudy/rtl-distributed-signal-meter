@@ -1,4 +1,5 @@
-require("dotenv").config();
+
+import '../dotenv';
 
 import { ObjectId } from "mongodb";
 import { getCollections } from "./db/index";

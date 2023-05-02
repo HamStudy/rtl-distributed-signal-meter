@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
-import {config as dotEnvConfig} from 'dotenv';
-dotEnvConfig();
+import './dotenv';
 
 /**
  * Module dependencies.
