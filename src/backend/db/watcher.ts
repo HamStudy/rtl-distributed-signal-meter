@@ -56,6 +56,7 @@ async function initAgenda() {
         getAgenda(),
     ]);
     agenda.define('updateWatch', {lockLifetime: pingSeconds/2 * 1000}, async (job: JobAttributesData) => {
+        console.log("Update watch triggered");
         const upd = await LastUpdate.findOneAndUpdate({_id: 'dbWatcher'}, {$set: {lastUpdate: new Date()}}, {upsert: true});
         if (!upd.value) {
             console.log("Failed to update lastUpdate");
@@ -90,6 +91,8 @@ let killerWatchDogInterval = setInterval(() => {
     if (disableWatchdog) { return; }
     const secondsSinceLastUpdate = (Date.now() - watchDogTick) / 1000;
     if (secondsSinceLastUpdate > failSeconds * 10) {
+        console.log("dbWatcher timeout hit; restarting process");
+        process.exit(1);
         // We're at 10x longer than we wait to try to restart the watch;
         // we're not recovering, so die Die DIE!
         // K8sLifecycle.setUnrecoverableError(new Error("dbWatcher timeout hit"));
@@ -196,7 +199,7 @@ async function onChangeHandler(doc: ChangeStreamDocument<any>) {
     startToken = doc._id;
     // Update current time
     watchDogTick = Date.now();
-    // console.log("Watchdog update");
+    console.log("Watchdog update");
 
     switch(doc.operationType) {
         case 'insert':

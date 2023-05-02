@@ -11,6 +11,7 @@ import Debug from 'debug';
 
 import expressWs from 'express-ws';
 import ViteExpress from 'vite-express';
+import { watchDatabase } from './backend/db/watcher';
 
 const debug = Debug('signal-meter:server');
 import http from 'node:http';
@@ -60,6 +61,13 @@ function normalizePort(val: string) {
 
   return false;
 }
+
+watchDatabase({
+  collection: 'lastUpdate',
+  onChange(newDoc, changeDoc) {
+    console.log("Last Update changed:", newDoc, changeDoc);
+  },
+});
 
 // function isNodeError(error: any): error is NodeJS.ErrnoException {
 //     return error instanceof Error;

@@ -8,7 +8,8 @@ export async function getAgenda() {
     const mongoUri = getDbUri();
     agenda = new Agenda({db: {address: mongoUri}, processEvery: '10 seconds', defaultLockLifetime: 5000});
 
-    agenda.start();
+    console.log("Starting Agenda");
+    await agenda.start();
     return agenda;
 }
 export async function stopAgenda() {
