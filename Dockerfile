@@ -22,6 +22,7 @@ FROM base as final
 
 COPY --from=dev /app/dist /app/dist
 COPY --from=dev /app/ndist /app/ndist
+COPY --from=dev /app/views /app/ndist
 
 ENV NODE_ENV=production
 ENV NODE_OPTIONS="--max-old-space-size=4096 --enable-source-maps"
