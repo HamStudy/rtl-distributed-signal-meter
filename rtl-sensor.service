@@ -1,0 +1,14 @@
+[Unit]
+Description=rtl-sensor
+After=network.target
+
+[Service]
+WorkingDirectory=/home/nt3st/rtl-distributed-signal-meter
+Type=simple
+User=nt3st
+ExecStart=/home/nt3st/.nvm/versions/node/v18.16.0/bin/node /home/nt3st/rtl-distributed-signal-meter/ndist/client wss://sensor.signalstuff.com <node_name>
+Restart=always
+RestartSec=20s
+
+[Install]
+WantedBy=multi-user.target

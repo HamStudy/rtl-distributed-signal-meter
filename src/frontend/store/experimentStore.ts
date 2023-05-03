@@ -11,9 +11,9 @@ export type TestRunData = TestRunDataMessage['doc'];
 const k_UpdateInterval = 250;
 
 function formatDistanceToNow(date: Date) {
-  const diff = Math.round(date.getTime() - Date.now()) / 1000;
+  const diff = Math.ceil(date.getTime() - Date.now() / 1000);
 
-  return `in ${diff} second` + (diff === 1 ? '' : 's');
+  return `in ${diff}s`;
 }
 
 export default defineStore('experimentStore', () => {
@@ -155,11 +155,11 @@ export default defineStore('experimentStore', () => {
       if (tr.startTime.getTime() > Date.now()) {
         // if the job has not started yet calculate how long until it starts
         jobStatus.value[tr._id].state = 'pend';
-        jobStatus.value[tr._id].status = `Starting in ${formatDistanceToNow(tr.startTime)}`;
+        jobStatus.value[tr._id].status = `Starting ${formatDistanceToNow(tr.startTime)}`;
       } else if (tr.startTime.getTime() <= Date.now() && tr.endTime.getTime() > Date.now()) {
         // if the job has started but not finished calculate how long until it finishes
         jobStatus.value[tr._id].state = 'run';
-        jobStatus.value[tr._id].status = `Finishing in ${formatDistanceToNow(tr.endTime)}`;
+        jobStatus.value[tr._id].status = `Finishing ${formatDistanceToNow(tr.endTime)}`;
       } else {
         if (jobStatus.value[tr._id].state !== 'done') {
           jobStatus.value[tr._id].state = 'done';
