@@ -31,7 +31,16 @@ export interface NodeStatusMessage {
 }
 export interface TestRunDataMessage {
   type: 'trData';
-  doc: Omit<TestRunData, '_id' | 'rawData' | 'nodeId' | 'testRunId'> & {nodeId: string; testRunId: string;};
+  doc: Omit<TestRunData, '_id' | 'rawData' | 'nodeId' | 'testRunId'> & {
+    nodeId: string;
+    testRunId: string;
+    noiseFloor: number;
+  };
+}
+export interface ItemDeletedMessage {
+  type: 'itemDeleted';
+  itemType: 'testRun' | 'experiment';
+  itemId: string;
 }
 
 export type WSMessageDoc = never
@@ -43,4 +52,5 @@ export type WSMessageDoc = never
   | NodeStatusMessage
   | TestRunDataMessage
   | ExperimentUpdate
+  | ItemDeletedMessage
 ;

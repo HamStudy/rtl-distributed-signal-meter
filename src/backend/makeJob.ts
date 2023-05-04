@@ -4,7 +4,7 @@ import '../dotenv';
 import { ObjectId } from "mongodb";
 import { getCollections } from "./db/index";
 
-async function createJobNow(frequency: string, expId: ObjectId) {
+async function createJobNow(frequency: string, expId: ObjectId, configDescription: string) {
   const { TestRun, Experiment } = await getCollections("testRun", "experiment");
 
   if (Number(frequency) < 1e6) {
@@ -21,12 +21,12 @@ async function createJobNow(frequency: string, expId: ObjectId) {
   let startTime = new Date();
   startTime.setSeconds(startTime.getSeconds() + 20);
   let endTime = new Date(startTime);
-  endTime.setSeconds(startTime.getSeconds() + 10);
+  endTime.setSeconds(startTime.getSeconds() + 30);
 
   await TestRun.insertOne({
     _id: new ObjectId(),
-    configDescription: "test thingy",
-    frequency,
+    configDescription: configDescription || "No description",
+    frequency, // Needed to support e.g. 146.52e6 notation
     startTime,
     endTime,
     experimentId: exp._id,
@@ -38,10 +38,10 @@ async function createJobNow(frequency: string, expId: ObjectId) {
 // If the script was called directly
 
 if (require.main === module) {
-  // The last two command line arguments are the experiment ID and the frequency
-  const expId = new ObjectId(process.argv[2]);
-  const frequency = Number(process.argv[3]);
-  createJobNow(String(frequency), expId).then(() => {
+  // the last three args are the experiment ID, frequency, and description
+  const [expId, frequency, configDesc] = process.argv.slice(-3);
+  // String(Number(frequency)) is Needed to support e.g. 146.52e6 notation
+  createJobNow(String(Number(frequency)), ObjectId.createFromHexString(expId), configDesc).then(() => {
     console.log("Done");
     process.exit(0)
   }).catch((err) => {

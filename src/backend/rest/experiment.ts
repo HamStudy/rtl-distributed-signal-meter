@@ -1,13 +1,14 @@
 
 import { Router } from 'express';
 import { addAsync } from '@awaitjs/express';
-import { getCollections } from '../db';
+import { TestRunData, getCollections } from '../db';
 import { ObjectId } from 'mongodb';
 import { getWsInstance } from '../expressWs';
 import { WSMessageDoc } from '../../shared/wsMessage';
 import { WebSocket } from 'ws';
 import { watchDatabase } from '../db/watcher';
 import pick from '../../utils/pick';
+import { getNoiseFloor } from '../rtlPower';
 
 const bareRouter = Router();
 const router = addAsync(bareRouter);
@@ -23,6 +24,36 @@ const k_PingTimeout = 30000;
 let nextPingTimeout: NodeJS.Timeout | null;
 let pingTimeout: NodeJS.Timeout | null;
 
+function sendTestDataDoc(ws: WebSocket, inDoc: TestRunData) {
+  const data = inDoc.rawData;
+  const middle = Math.floor(data.length / 2);
+  const avg = data[middle]*.5 + data[middle - 1]*.25 + data[middle + 1]*.25;
+  const noiseFloor = getNoiseFloor(
+    inDoc.rawData.filter(
+      (_, i) => i !== middle - 1 && i !== middle && i !== middle + 1
+    )
+  );
+
+  const doc = pick(inDoc, [
+    'testRunId',
+    'nodeId',
+    'timestamp',
+    'frequency',
+    'power',
+  ]);
+
+  sendWsData(ws, {
+    type: "trData",
+    doc: {
+      ...doc,
+      testRunId: doc.testRunId.toString(),
+      nodeId: doc.nodeId.toString(),
+      power: Math.round(avg * 1000) / 1000,
+      noiseFloor: Math.round(noiseFloor * 1000) / 1000,
+    },
+  });
+}
+
 export function getRouter() {
   getWsInstance().applyTo(router); // enable websocket support
 
@@ -34,6 +65,25 @@ export function getRouter() {
     const expDoc = await Experiment.findOne({_id: ObjectId.createFromHexString(expId)});
 
     res.send(expDoc);
+  });
+
+  router.deleteAsync('/exp/:expId/testrun/:trId', async (req, res) => {
+    const {expId, trId} = req.params;
+
+    const {TestRun, TestRunData} = await getCollections('testRun', 'testRunData');
+    const trDoc = await TestRun.findOne({_id: ObjectId.createFromHexString(trId), experimentId: ObjectId.createFromHexString(expId)});
+    if (!trDoc) {
+      res.status(404).send();
+      return;
+    }
+    // Delete all associated TestRunData
+    const delDataRes = await TestRunData.deleteMany({testRunId: trDoc._id});
+    console.log("Deleted", delDataRes.deletedCount, "testRunData docs");
+    // Delete the TestRun doc
+    const delRes = await TestRun.deleteOne({_id: trDoc._id});
+    console.log("Deleted", delRes.deletedCount, "testRun docs");
+
+    res.send({trDocDelete: delRes, trDataDelete: delDataRes});
   });
 
   bareRouter.ws('/socket/exp/:expId', async (ws, req) => {
@@ -95,6 +145,18 @@ export function getRouter() {
     watchDatabase({
       collection: "testRun",
       filter: (newDoc) => newDoc.experimentId.equals(expId),
+      onDelete(oldDocId) {
+        // Remove the testRun from the testRuns array
+        const idx = testRuns.findIndex((tr) => tr._id.equals(oldDocId));
+        if (idx !== -1) {
+          testRuns.splice(idx, 1);
+        }
+        sendWsData(ws, {
+          type: "itemDeleted",
+          itemType: "testRun",
+          itemId: oldDocId.toString(),
+        });
+      },
       onChange(newDoc, changeDoc) {
         // Update the testRuns array, add or update
         const curVal = testRuns.find((tr) => tr._id.equals(newDoc._id));
@@ -119,21 +181,7 @@ export function getRouter() {
       collection: "testRunData",
       filter: newDoc => testRuns.some(tr => tr._id.equals(newDoc.testRunId)),
       onChange(newDoc, changeDoc) {
-        const doc = pick(newDoc, [
-          'testRunId',
-          'nodeId',
-          'timestamp',
-          'frequency',
-          'power',
-        ]);
-        sendWsData(ws, {
-          type: "trData",
-          doc: {
-            ...doc,
-            testRunId: doc.testRunId.toString(),
-            nodeId: doc.nodeId.toString(),
-          },
-        });
+        sendTestDataDoc(ws, newDoc);
       }
     });
     // Get all nodes that have been seen in the last minute
@@ -173,21 +221,7 @@ export function getRouter() {
 
     const trData = await TestRunData.find({testRunId: {$in: testRuns.map(tr => tr._id)}}).toArray();
     for (const doc of trData) {
-      const data = pick(doc, [
-        'testRunId',
-        'nodeId',
-        'timestamp',
-        'frequency',
-        'power',
-      ]);
-      sendWsData(ws, {
-        type: "trData",
-        doc: {
-          ...data,
-          testRunId: data.testRunId.toString(),
-          nodeId: data.nodeId.toString(),
-        },
-      });
+      sendTestDataDoc(ws, doc);
     }
 
     const neededNodeIds = trData.map(doc => doc.nodeId);
@@ -213,3 +247,4 @@ export function getRouter() {
 
   return router;
 }
+

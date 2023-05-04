@@ -11,7 +11,7 @@ export type TestRunData = TestRunDataMessage['doc'];
 const k_UpdateInterval = 250;
 
 function formatDistanceToNow(date: Date) {
-  const diff = Math.ceil(date.getTime() - Date.now() / 1000);
+  const diff = Math.ceil((date.getTime() - Date.now()) / 1000);
 
   return `in ${diff}s`;
 }
@@ -34,6 +34,32 @@ export default defineStore('experimentStore', () => {
   const testRunData = ref<TestRunData[]>([]);
 
   const activeNodes = computed(() => allNodes.value.filter(n => n.lastSeen.getTime() > Date.now() - 30000));
+
+  // Map of the list of test run data to the test run ID
+  const testRunDataMap = ref<Record<string, TestRunData[]>>({});
+
+  // Map of the noise floor to the node ID
+  const noiseFloorMap = ref<Record<string, number>>({});
+
+  // Map of the max observed power to the node ID
+  const maxPowerMap = ref<Record<string, number>>({});
+
+  function updateMaps(data: TestRunDataMessage['doc']) {
+    const nodeId = data.nodeId;
+    const testRunId = data.testRunId;
+    if (!testRunDataMap.value[testRunId]) {
+      testRunDataMap.value[testRunId] = [];
+    }
+    testRunDataMap.value[testRunId].push(data);
+
+    if (!noiseFloorMap.value[nodeId] || noiseFloorMap.value[nodeId] > data.noiseFloor) {
+      noiseFloorMap.value[nodeId] = data.noiseFloor;
+    }
+
+    if (!maxPowerMap.value[nodeId] || maxPowerMap.value[nodeId] < data.power) {
+      maxPowerMap.value[nodeId] = data.power; // 10dB is the minimum power max
+    }
+  }
 
   function sendWsData(ws: WebSocket, data: WSMessageDoc) {
     console.warn("Sending data:", data);
@@ -82,7 +108,9 @@ export default defineStore('experimentStore', () => {
       const curEntry = testRunData.value.findIndex(tr => tr.timestamp === msg.doc.timestamp && tr.nodeId === msg.doc.nodeId);
       if (curEntry >= 0) return; // ignore duplicates
       msg.doc.timestamp = new Date(msg.doc.timestamp);
-      testRunData.value.push(Object.freeze(msg.doc));
+      const frozen = Object.freeze(msg.doc);
+      testRunData.value.push(frozen);
+      updateMaps(frozen);
     },
   }
 
@@ -101,9 +129,9 @@ export default defineStore('experimentStore', () => {
     }
   }
 
-  const dataForTestRun = (tr: TestRun) => testRunData.value.filter(trd => trd.testRunId === tr._id);
-  const trDataByNode = (tr: TestRun) => {
-    const filtered = dataForTestRun(tr);
+  const dataForTestRun = (trId: string) => testRunDataMap.value[trId] || [];
+  const trDataByNode = (trId: string) => {
+    const filtered = dataForTestRun(trId);
     const byNode = new Map<string, TestRunData[]>();
     for (const trd of filtered) {
       const nodeData = byNode.get(trd.nodeId);
@@ -118,15 +146,42 @@ export default defineStore('experimentStore', () => {
     }
     return byNode;
   };
-  const nodesForTestRun = (tr: TestRun) => {
-    const byNode = trDataByNode(tr);
+  const nodesForTestRun = (trId: string) => {
+    const byNode = trDataByNode(trId);
     const nodeIds = Array.from(byNode.keys());
     return allNodes.value.filter(n => nodeIds.includes(n.nodeId));
   };
-  const getNodeTrData = (tr: TestRun, node: NodeStatus) => {
-    const byNode = trDataByNode(tr);
-    return byNode.get(node.nodeId) || [];
+  const getNodeTrData = (trId: string, nodeId: string) => {
+    const byNode = trDataByNode(trId);
+    return byNode.get(nodeId) || [];
   };
+
+  function getPowerStats(trId: string, nodeId: string) {
+    const dataForNode = getNodeTrData(trId, nodeId);
+    const noiseFloor = noiseFloorMap.value[nodeId];
+
+    dataForNode.sort((a, b) => a.power - b.power);
+
+    const powerStats = dataForNode.reduce((acc, cur) => {
+      const power = cur.power - noiseFloor;
+      if (power > acc.max) {
+        acc.max = power;
+      }
+      if (power < acc.min) {
+        acc.min = power;
+      }
+      acc.sum += power;
+      acc.count++;
+      return acc;
+    }, {min: Number.MAX_SAFE_INTEGER, max: Number.MIN_SAFE_INTEGER, sum: 0, count: 0} as {min: number, max: number, sum: number, count: number});
+
+    return {
+      min: powerStats.min,
+      max: powerStats.max,
+      avg: powerStats.sum / powerStats.count,
+      median: dataForNode[Math.floor(dataForNode.length / 2)]?.power - noiseFloor,
+    };
+  }
 
   watch(() => useRoute().params.expId as string, (newVal) => {
     expId.value = newVal;
@@ -169,6 +224,10 @@ export default defineStore('experimentStore', () => {
     }
   }, k_UpdateInterval);
 
+  async function deleteTestRun(trId) {
+    await fetch(`/api/exp/${expId.value}/testrun/${trId}`, {method: 'DELETE'});
+  }
+
   return {
     expId,
 
@@ -178,6 +237,14 @@ export default defineStore('experimentStore', () => {
     testRunData,
 
     jobStatus,
+
+    noiseFloorByNode: noiseFloorMap,
+    getMaxPowerByNode(nodeId: string) {
+      const maxPower = maxPowerMap.value[nodeId];
+      const noiseFloor = noiseFloorMap.value[nodeId];
+      return Math.max(maxPower - noiseFloor, 10);
+    },
+    getPowerStats,
 
     dataForTestRun,
     trDataByNode,

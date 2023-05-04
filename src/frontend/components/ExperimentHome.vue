@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // import { ref } from 'vue'
 import { onMounted } from 'vue'
-import { initFlowbite } from 'flowbite'
+import { initFlowbite, initTooltips } from 'flowbite'
 import useExperimentStore, { NodeStatus } from '../store/experimentStore';
 import { TheCard } from 'flowbite-vue';
 import { Progress } from 'flowbite-vue'
@@ -12,8 +12,8 @@ dayjs.extend(relativeTime);
 
 // initialize components based on data attribute selectors
 onMounted(() => {
-    initFlowbite();
-    // console.log("Flowbite initted");
+  setTimeout(() => initTooltips(), 3000);
+  // console.log("Flowbite initted");
 });
 
 // defineProps<{ msg: string }>();
@@ -41,8 +41,9 @@ function nodeRfActive(node: NodeStatus) {
   return (Date.now() - node.rfStatus.updatedAt.getTime()) < 10000;
 }
 
-function getProgressColor(powerLevel: number) {
-  const powerPercent = powerLevel / 30;
+function getProgressColor(powerLevel: number, nodeId: string) {
+  const maxRssi = expStore.getMaxPowerByNode(nodeId);
+  const powerPercent = powerLevel / maxRssi;
 
   if (powerPercent < 0.2) {
     return "bg-amber-800";
@@ -59,6 +60,18 @@ function getProgressColor(powerLevel: number) {
   } else {
     return "bg-green-400";
   }
+}
+
+function calcPower(power: number, nodeId: string) {
+  const noiseFloor = expStore.noiseFloorByNode[nodeId];
+  if (!noiseFloor) { return 0; }
+  return power - noiseFloor;
+}
+
+function statsFor(trId: string, nodeId: string) {
+  const stats = expStore.getPowerStats(trId, nodeId);
+
+  return `(min: ${stats.min.toFixed(2)}, mean: ${stats.avg.toFixed(2)}, median: ${stats.median.toFixed(2)}, max: ${stats.max.toFixed(2)})`;
 }
 
 </script>
@@ -80,7 +93,7 @@ function getProgressColor(powerLevel: number) {
             <strong>Node: </strong>{{ node.nodeName }} <br />Last seen {{ relTime(node.lastSeen) }}
             <div v-if="nodeRfActive(node)">
               <p class="text-green-500">Active: {{ formatMHz(node.rfStatus!.frequency) }}</p>
-              <Progress :progress="node.rfStatus!.level / 30 * 100"
+              <Progress :progress="node.rfStatus!.level / expStore.getMaxPowerByNode(node.nodeId) * 100"
                 :label-progress="false" labelPosition="outside" :label="`${node.rfStatus!.level} dBm`"
                 color="green"
               ></Progress>
@@ -92,8 +105,11 @@ function getProgressColor(powerLevel: number) {
       <div class="flex">
         <the-card v-for="testRun in expStore.currentTestRuns" class="max-w-full m-2">
           <div>
-            <h5 class="mb-2 text-xl font-bold tracking-tight text-gray-900">
+            <h5 class="mb-2 text-l font-bold tracking-tight text-gray-900">
               {{ formatTime(testRun.startTime) }}: {{ formatMHz(testRun.frequency) }}
+            </h5>
+            <h5 class="mb-2 text-l font-bold tracking-tight text-gray-900">
+              {{ testRun.configDescription }}
             </h5>
             <div v-if="expStore.jobStatus[testRun._id]">
               <p class="mb-2 text-red-700" v-if="expStore.jobStatus[testRun._id].state === 'pend'">
@@ -107,12 +123,19 @@ function getProgressColor(powerLevel: number) {
               </p>
 
             </div>
-            <the-card v-for="node in expStore.nodesForTestRun(testRun)" class="max-w-xs">
-              {{ node.nodeName }}
-              <div class="flex justify-center">
-                <div class="flex flex-col flex-nowrap justify-end w-2 h-32 bg-gray-200 overflow-hidden dark:bg-gray-700" v-for="point of expStore.getNodeTrData(testRun, node)">
-                  <div :class="`${getProgressColor(point.power)} overflow-hidden`" role="progressbar" :style="`height: ${5 + point.power / 30 * 100}%`" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100"></div>
-                </div>
+            <the-card v-for="(node, nIdx) in expStore.nodesForTestRun(testRun._id)" class="max-w-xs">
+              {{ node.nodeName }} {{ statsFor(testRun._id, node.nodeId) }}
+              <div class="flex justify-center" style="min-width: 290px;">
+                <template v-for="(point, pIdx) of expStore.getNodeTrData(testRun._id, node.nodeId)">
+                  <div :data-tooltip-target="`tooltip-${nIdx}-${pIdx}`"
+                    class="flex flex-col flex-nowrap justify-end w-2 h-32 bg-gray-200 overflow-hidden dark:bg-gray-700">
+                    <div :class="`${getProgressColor(calcPower(point.power, node.nodeId), node.nodeId)} overflow-hidden`" role="progressbar" :style="`height: ${5 + calcPower(point.power, node.nodeId) / expStore.getMaxPowerByNode(node.nodeId) * 95}%`" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100"></div>
+                  </div>
+                  <div :id="`tooltip-${nIdx}-${pIdx}`" role="tooltip" class="absolute z-10 invisible inline-block px-3 py-2 text-sm font-medium text-white transition-opacity duration-300 bg-gray-900 rounded-lg shadow-sm opacity-0 tooltip dark:bg-gray-700">
+                      {{ calcPower(point.power, node.nodeId) }} dBm
+                      <div class="tooltip-arrow" data-popper-arrow></div>
+                  </div>
+                </template>
               </div>
             </the-card>
           </div>

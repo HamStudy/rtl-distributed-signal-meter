@@ -61,6 +61,7 @@ export class RtlPowerWrapper extends EventEmitter {
     if (this.rtlPowerProcess) {
       this.stop();
     }
+    console.log("Starting rtl_power with options: ", getArguments(this.options).join(' '));
     this.rtlPowerProcess = spawn('rtl_power', getArguments(this.options));
     const freq = this.options.frequency;
 
